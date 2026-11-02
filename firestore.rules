@@ -1,0 +1,185 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -------------------------------------------------------------------------
+    // Funções auxiliares de autenticação e validação
+    // -------------------------------------------------------------------------
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isScore0To10(value) {
+      return (value is int || value is float) && value >= 0 && value <= 10;
+    }
+
+    function isOptionalScore0To10(data, field) {
+      return !(field in data) || data[field] == null || isScore0To10(data[field]);
+    }
+
+    function isNonEmptyString(value, maxLen) {
+      return value is string && value.size() > 0 && value.size() <= maxLen;
+    }
+
+    function isOptionalString(data, field, maxLen) {
+      return !(field in data)
+        || data[field] == null
+        || (data[field] is string && data[field].size() <= maxLen);
+    }
+
+    function isValidUserProfileMap(profile) {
+      return profile is map
+        && isNonEmptyString(profile.nome, 120)
+        && (!('nascimento' in profile) || profile.nascimento == null || profile.nascimento is timestamp)
+        && (!('preferencias' in profile) || profile.preferencias is map)
+        && (!('fcmTokens' in profile) || (profile.fcmTokens is list && profile.fcmTokens.size() <= 20));
+    }
+
+    function isValidUserDoc(data, uid) {
+      return data.uid == uid
+        && isOptionalString(data, 'email', 254)
+        && isValidUserProfileMap(data.profile);
+    }
+
+    // -------------------------------------------------------------------------
+    // Documento da usuária e subcoleções privadas: users/{uid}/**
+    // Cada usuária lê e escreve APENAS nos próprios dados.
+    // -------------------------------------------------------------------------
+    match /users/{uid} {
+      allow read: if isOwner(uid);
+      allow create, update: if isOwner(uid) && isValidUserDoc(request.resource.data, uid);
+      allow delete: if isOwner(uid);
+
+      // Registros diários de sintomas
+      match /symptomLogs/{logId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.data is timestamp
+          && isScore0To10(request.resource.data.dor)
+          && isOptionalScore0To10(request.resource.data, 'colica')
+          && isOptionalScore0To10(request.resource.data, 'fadiga')
+          && isOptionalScore0To10(request.resource.data, 'nausea')
+          && isOptionalScore0To10(request.resource.data, 'inchaco')
+          && isOptionalScore0To10(request.resource.data, 'sono')
+          && (!('regioes' in request.resource.data) || request.resource.data.regioes is list)
+          && (!('mapaCorporal' in request.resource.data) || (request.resource.data.mapaCorporal is list && request.resource.data.mapaCorporal.size() <= 25))
+          && (!('tipos' in request.resource.data) || request.resource.data.tipos is list)
+          && (!('intestinal' in request.resource.data) || request.resource.data.intestinal is list)
+          && (!('urinario' in request.resource.data) || request.resource.data.urinario is list)
+          && isOptionalString(request.resource.data, 'humor', 60)
+          && (
+            !('dorRelacao' in request.resource.data)
+            || request.resource.data.dorRelacao == null
+            || (
+              request.resource.data.dorRelacao is map
+              && isOptionalString(request.resource.data.dorRelacao, 'local', 120)
+              && isOptionalScore0To10(request.resource.data.dorRelacao, 'escala')
+            )
+          )
+          && isOptionalString(request.resource.data, 'notas', 2000);
+      }
+
+      // Entradas de calendário e ciclo menstrual
+      match /cycleEntries/{entryId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.data is timestamp
+          && isOptionalString(request.resource.data, 'fluxo', 40)
+          && (!('ovulacaoEstimada' in request.resource.data) || request.resource.data.ovulacaoEstimada is bool)
+          && (!('ovulacaoObservada' in request.resource.data) || request.resource.data.ovulacaoObservada is bool)
+          && (!('crise' in request.resource.data) || request.resource.data.crise is bool)
+          && (!('medicamentos' in request.resource.data) || (request.resource.data.medicamentos is list && request.resource.data.medicamentos.size() <= 30))
+          && isOptionalString(request.resource.data, 'consultaOuExame', 160)
+          && isOptionalString(request.resource.data, 'observacoes', 1000);
+      }
+
+      // Medicamentos e tratamentos
+      match /treatments/{treatmentId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && isNonEmptyString(request.resource.data.medicamento, 160)
+          && isOptionalString(request.resource.data, 'categoria', 40)
+          && isOptionalString(request.resource.data, 'dose', 100)
+          && (!('horarios' in request.resource.data) || (request.resource.data.horarios is list && request.resource.data.horarios.size() <= 12))
+          && request.resource.data.ativo is bool
+          && (!('lembretesAtivos' in request.resource.data) || request.resource.data.lembretesAtivos is bool)
+          && isOptionalString(request.resource.data, 'notas', 1000);
+      }
+
+      // Efeitos percebidos de tratamentos
+      match /treatmentEffects/{effectId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && isNonEmptyString(request.resource.data.treatmentId, 128)
+          && isOptionalString(request.resource.data, 'treatmentName', 160)
+          && request.resource.data.data is timestamp
+          && isNonEmptyString(request.resource.data.efeito, 200)
+          && isOptionalString(request.resource.data, 'tipo', 40)
+          && isOptionalScore0To10(request.resource.data, 'intensidade')
+          && isOptionalString(request.resource.data, 'notas', 1000);
+      }
+
+      // Consultas, exames e procedimentos
+      match /appointments/{appointmentId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.tipo in ['consulta', 'exame', 'procedimento']
+          && isOptionalString(request.resource.data, 'titulo', 180)
+          && request.resource.data.data is timestamp
+          && isOptionalString(request.resource.data, 'local', 240)
+          && isOptionalString(request.resource.data, 'profissional', 160)
+          && isOptionalString(request.resource.data, 'notas', 2000)
+          && (!('status' in request.resource.data) || request.resource.data.status in ['agendado', 'realizado', 'cancelado']);
+      }
+
+      // Diário de impacto na qualidade de vida
+      match /impactLogs/{impactId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.data is timestamp
+          && isOptionalScore0To10(request.resource.data, 'trabalho')
+          && isOptionalScore0To10(request.resource.data, 'estudos')
+          && isOptionalScore0To10(request.resource.data, 'sono')
+          && isOptionalScore0To10(request.resource.data, 'exercicio')
+          && isOptionalScore0To10(request.resource.data, 'relacionamentos')
+          && isOptionalScore0To10(request.resource.data, 'rotina');
+      }
+
+      // Resultados de calculadoras clínicas
+      match /calculatorResults/{resultId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && isNonEmptyString(request.resource.data.calculadora, 80)
+          && request.resource.data.data is timestamp
+          && (request.resource.data.pontuacao is int || request.resource.data.pontuacao is float)
+          && isOptionalString(request.resource.data, 'interpretacao', 2000);
+      }
+
+      // Histórico de relatórios gerados
+      match /reports/{reportId} {
+        allow read, delete: if isOwner(uid);
+        allow create, update: if isOwner(uid)
+          && request.resource.data.dataGeracao is timestamp;
+      }
+    }
+
+    // -------------------------------------------------------------------------
+    // Biblioteca de conhecimento: somente leitura para usuárias autenticadas
+    // -------------------------------------------------------------------------
+    match /articles/{articleId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+    }
+
+    // Bloqueio padrão para qualquer outro caminho
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
+

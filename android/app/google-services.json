@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "531929507836",
+    "project_id": "endocare-50c83",
+    "storage_bucket": "endocare-50c83.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:531929507836:android:903776fc7eb9516ff4f479",
+        "android_client_info": {
+          "package_name": "com.lunaesolutions.endocare"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCbyjG8hhuSFo6xoC-UTr39hq5epHVGMgg"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

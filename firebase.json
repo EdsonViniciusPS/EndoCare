@@ -1,0 +1,28 @@
+{
+  "firestore": {
+    "rules": "firestore.rules"
+  },
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "endocare-50c83",
+          "appId": "1:531929507836:android:903776fc7eb9516ff4f479",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "endocare-50c83",
+          "configurations": {
+            "android": "1:531929507836:android:903776fc7eb9516ff4f479",
+            "ios": "1:531929507836:ios:fc765af7dfb57698f4f479",
+            "macos": "1:531929507836:ios:fc765af7dfb57698f4f479",
+            "web": "1:531929507836:web:5a192796b64a026df4f479",
+            "windows": "1:531929507836:web:652f6b8f381d2e8ef4f479"
+          }
+        }
+      }
+    }
+  }
+}
