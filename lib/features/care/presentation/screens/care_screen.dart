@@ -10,13 +10,14 @@ import 'package:endocare/core/widgets/endocare_widgets.dart';
 import 'package:endocare/features/appointments/domain/models/medical_appointment.dart';
 import 'package:endocare/features/appointments/presentation/widgets/appointment_form_sheet.dart';
 import 'package:endocare/features/auth/presentation/providers/auth_providers.dart';
+import 'package:endocare/features/calculators/presentation/screens/calculators_list_screen.dart';
 import 'package:endocare/features/care/presentation/providers/care_providers.dart';
 import 'package:endocare/features/treatments/domain/models/treatment.dart';
 import 'package:endocare/features/treatments/domain/models/treatment_effect.dart';
 import 'package:endocare/features/treatments/presentation/widgets/treatment_effect_sheet.dart';
 import 'package:endocare/features/treatments/presentation/widgets/treatment_form_sheet.dart';
 
-enum _CareSection { treatments, appointments }
+enum _CareSection { treatments, appointments, calculators }
 
 /// Aba 4 — Cuidar: gestão de medicamentos, horários, efeitos percebidos,
 /// histórico de tratamentos, consultas, exames, procedimentos e lembretes (locais + FCM).
@@ -342,7 +343,7 @@ class _CareScreenState extends ConsumerState<CareScreen>
               ),
               const SizedBox(height: AppSpacing.md),
 
-              // Alternador de seção: Medicamentos vs Consultas/Exames/Procedimentos
+              // Alternador de seção: Medicamentos vs Consultas vs Calculadoras
               Row(
                 children: [
                   Expanded(
@@ -364,6 +365,16 @@ class _CareScreenState extends ConsumerState<CareScreen>
                           setState(() => _section = _CareSection.appointments),
                     ),
                   ),
+                  const SizedBox(width: AppSpacing.xs),
+                  Expanded(
+                    child: _CareTabButton(
+                      label: 'Calculadoras',
+                      icon: Icons.calculate_outlined,
+                      selected: _section == _CareSection.calculators,
+                      onTap: () =>
+                          setState(() => _section = _CareSection.calculators),
+                    ),
+                  ),
                 ],
               ),
               const SizedBox(height: AppSpacing.lg),
@@ -375,12 +386,14 @@ class _CareScreenState extends ConsumerState<CareScreen>
                   historyTreatments: historyTreatments,
                   effects: effects,
                 )
-              else
+              else if (_section == _CareSection.appointments)
                 _buildAppointmentsSection(
                   textTheme: textTheme,
                   scheduledAppointments: scheduledAppointments,
                   pastAppointments: pastAppointments,
-                ),
+                )
+              else
+                const CalculatorsListView(),
             ],
           ),
         ),

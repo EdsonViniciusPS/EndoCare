@@ -27,6 +27,10 @@ import 'package:endocare/features/calendar/domain/models/cycle_entry.dart';
 import 'package:endocare/features/calendar/domain/models/cycle_prediction_engine.dart';
 import 'package:endocare/features/calendar/domain/repositories/cycle_repository.dart';
 import 'package:endocare/features/calendar/presentation/providers/calendar_providers.dart';
+import 'package:endocare/features/calculators/domain/calculators_registry.dart';
+import 'package:endocare/features/calculators/domain/models/calculator_result.dart';
+import 'package:endocare/features/calculators/domain/repositories/calculator_repository.dart';
+import 'package:endocare/features/calculators/presentation/providers/calculator_providers.dart';
 import 'package:endocare/features/care/presentation/providers/care_providers.dart';
 import 'package:endocare/features/home/domain/models/home_summary_data.dart';
 import 'package:endocare/features/home/presentation/providers/home_providers.dart';
@@ -461,6 +465,75 @@ class FakeImpactLogRepository implements ImpactLogRepository {
     required DateTime date,
   }) async {
     _userMap(uid).remove(SymptomLog.dateKeyFor(date));
+    _changes.add(null);
+  }
+
+  void dispose() {
+    _changes.close();
+  }
+}
+
+/// Repositório em memória de `users/{uid}/calculatorResults/{id}` para testes.
+class FakeCalculatorRepository implements CalculatorRepository {
+  final Map<String, Map<String, CalculatorResult>> _resultsByUid = {};
+  final StreamController<void> _changes = StreamController<void>.broadcast();
+
+  Map<String, CalculatorResult> _userMap(String uid) {
+    return _resultsByUid.putIfAbsent(uid, () => {});
+  }
+
+  void seedResult(String uid, CalculatorResult result) {
+    _userMap(uid)[result.id] = result;
+    _changes.add(null);
+  }
+
+  @override
+  Stream<List<CalculatorResult>> watchResults({required String uid}) async* {
+    yield _sorted(uid);
+    await for (final _ in _changes.stream) {
+      yield _sorted(uid);
+    }
+  }
+
+  List<CalculatorResult> _sorted(String uid) {
+    final list = _userMap(uid).values.toList()
+      ..sort((a, b) => b.data.compareTo(a.data));
+    return list;
+  }
+
+  @override
+  Future<List<CalculatorResult>> getResultsForCalculator({
+    required String uid,
+    required String calculatorId,
+  }) async {
+    return _sorted(uid).where((r) => r.calculadora == calculatorId).toList();
+  }
+
+  @override
+  Future<CalculatorResult?> getLatestResult({
+    required String uid,
+    required String calculatorId,
+  }) async {
+    final list =
+        await getResultsForCalculator(uid: uid, calculatorId: calculatorId);
+    return list.isEmpty ? null : list.first;
+  }
+
+  @override
+  Future<void> saveResult({
+    required String uid,
+    required CalculatorResult result,
+  }) async {
+    _userMap(uid)[result.id] = result;
+    _changes.add(null);
+  }
+
+  @override
+  Future<void> deleteResult({
+    required String uid,
+    required String resultId,
+  }) async {
+    _userMap(uid).remove(resultId);
     _changes.add(null);
   }
 
@@ -911,6 +984,7 @@ void main() {
         final fakeTreatments = FakeTreatmentRepository();
         final fakeAppointments = FakeAppointmentRepository();
         final fakeImpact = FakeImpactLogRepository();
+        final fakeCalculators = FakeCalculatorRepository();
         final fakeScheduler = FakeReminderScheduler();
 
         addTearDown(() {
@@ -921,6 +995,7 @@ void main() {
           fakeTreatments.dispose();
           fakeAppointments.dispose();
           fakeImpact.dispose();
+          fakeCalculators.dispose();
           fakeScheduler.dispose();
         });
 
@@ -935,6 +1010,7 @@ void main() {
               treatmentRepositoryProvider.overrideWithValue(fakeTreatments),
               appointmentRepositoryProvider.overrideWithValue(fakeAppointments),
               impactLogRepositoryProvider.overrideWithValue(fakeImpact),
+              calculatorRepositoryProvider.overrideWithValue(fakeCalculators),
               reminderSchedulerProvider.overrideWithValue(fakeScheduler),
               homeClockProvider.overrideWithValue(
                 () => DateTime(2026, 11, 2, 15, 30),
@@ -1024,6 +1100,7 @@ void main() {
         final fakeTreatments = FakeTreatmentRepository();
         final fakeAppointments = FakeAppointmentRepository();
         final fakeImpact = FakeImpactLogRepository();
+        final fakeCalculators = FakeCalculatorRepository();
         final fakeScheduler = FakeReminderScheduler();
 
         addTearDown(() {
@@ -1034,6 +1111,7 @@ void main() {
           fakeTreatments.dispose();
           fakeAppointments.dispose();
           fakeImpact.dispose();
+          fakeCalculators.dispose();
           fakeScheduler.dispose();
         });
 
@@ -1048,6 +1126,7 @@ void main() {
               treatmentRepositoryProvider.overrideWithValue(fakeTreatments),
               appointmentRepositoryProvider.overrideWithValue(fakeAppointments),
               impactLogRepositoryProvider.overrideWithValue(fakeImpact),
+              calculatorRepositoryProvider.overrideWithValue(fakeCalculators),
               reminderSchedulerProvider.overrideWithValue(fakeScheduler),
               homeClockProvider.overrideWithValue(() => today),
             ],
@@ -1266,6 +1345,7 @@ void main() {
         final fakeTreatments = FakeTreatmentRepository();
         final fakeAppointments = FakeAppointmentRepository();
         final fakeImpact = FakeImpactLogRepository();
+        final fakeCalculators = FakeCalculatorRepository();
         final fakeScheduler = FakeReminderScheduler();
 
         addTearDown(() {
@@ -1276,6 +1356,7 @@ void main() {
           fakeTreatments.dispose();
           fakeAppointments.dispose();
           fakeImpact.dispose();
+          fakeCalculators.dispose();
           fakeScheduler.dispose();
         });
 
@@ -1290,6 +1371,7 @@ void main() {
               treatmentRepositoryProvider.overrideWithValue(fakeTreatments),
               appointmentRepositoryProvider.overrideWithValue(fakeAppointments),
               impactLogRepositoryProvider.overrideWithValue(fakeImpact),
+              calculatorRepositoryProvider.overrideWithValue(fakeCalculators),
               reminderSchedulerProvider.overrideWithValue(fakeScheduler),
               homeClockProvider.overrideWithValue(() => today),
             ],
@@ -1524,6 +1606,7 @@ void main() {
         final fakeTreatments = FakeTreatmentRepository();
         final fakeAppointments = FakeAppointmentRepository();
         final fakeImpact = FakeImpactLogRepository();
+        final fakeCalculators = FakeCalculatorRepository();
         final fakeScheduler = FakeReminderScheduler();
 
         addTearDown(() {
@@ -1534,6 +1617,7 @@ void main() {
           fakeTreatments.dispose();
           fakeAppointments.dispose();
           fakeImpact.dispose();
+          fakeCalculators.dispose();
           fakeScheduler.dispose();
         });
 
@@ -1548,6 +1632,7 @@ void main() {
               treatmentRepositoryProvider.overrideWithValue(fakeTreatments),
               appointmentRepositoryProvider.overrideWithValue(fakeAppointments),
               impactLogRepositoryProvider.overrideWithValue(fakeImpact),
+              calculatorRepositoryProvider.overrideWithValue(fakeCalculators),
               reminderSchedulerProvider.overrideWithValue(fakeScheduler),
               homeClockProvider.overrideWithValue(() => today),
             ],
@@ -1664,6 +1749,7 @@ void main() {
       final fakeTreatments = FakeTreatmentRepository();
       final fakeAppointments = FakeAppointmentRepository();
       final fakeImpact = FakeImpactLogRepository();
+      final fakeCalculators = FakeCalculatorRepository();
       final fakeScheduler = FakeReminderScheduler();
       addTearDown(() {
         fakeAuth.dispose();
@@ -1673,6 +1759,7 @@ void main() {
         fakeTreatments.dispose();
         fakeAppointments.dispose();
         fakeImpact.dispose();
+        fakeCalculators.dispose();
         fakeScheduler.dispose();
       });
 
@@ -1687,6 +1774,7 @@ void main() {
             treatmentRepositoryProvider.overrideWithValue(fakeTreatments),
             appointmentRepositoryProvider.overrideWithValue(fakeAppointments),
             impactLogRepositoryProvider.overrideWithValue(fakeImpact),
+            calculatorRepositoryProvider.overrideWithValue(fakeCalculators),
             reminderSchedulerProvider.overrideWithValue(fakeScheduler),
             homeClockProvider.overrideWithValue(
               () => DateTime(2026, 11, 2, 10, 0),
@@ -1923,6 +2011,7 @@ void main() {
         final fakeTreatments = FakeTreatmentRepository();
         final fakeAppointments = FakeAppointmentRepository();
         final fakeImpact = FakeImpactLogRepository();
+        final fakeCalculators = FakeCalculatorRepository();
         final fakeScheduler = FakeReminderScheduler();
         final today = DateTime(2026, 11, 2, 19, 30);
 
@@ -1934,6 +2023,7 @@ void main() {
           fakeTreatments.dispose();
           fakeAppointments.dispose();
           fakeImpact.dispose();
+          fakeCalculators.dispose();
           fakeScheduler.dispose();
         });
 
@@ -1948,6 +2038,7 @@ void main() {
               treatmentRepositoryProvider.overrideWithValue(fakeTreatments),
               appointmentRepositoryProvider.overrideWithValue(fakeAppointments),
               impactLogRepositoryProvider.overrideWithValue(fakeImpact),
+              calculatorRepositoryProvider.overrideWithValue(fakeCalculators),
               reminderSchedulerProvider.overrideWithValue(fakeScheduler),
               homeClockProvider.overrideWithValue(() => today),
             ],
@@ -2460,6 +2551,7 @@ void main() {
         final fakeTreatments = FakeTreatmentRepository();
         final fakeAppointments = FakeAppointmentRepository();
         final fakeImpact = FakeImpactLogRepository();
+        final fakeCalculators = FakeCalculatorRepository();
         final fakeScheduler = FakeReminderScheduler();
         final today = DateTime(2026, 11, 2, 10, 0);
 
@@ -2525,6 +2617,7 @@ void main() {
           fakeTreatments.dispose();
           fakeAppointments.dispose();
           fakeImpact.dispose();
+          fakeCalculators.dispose();
           fakeScheduler.dispose();
         });
 
@@ -2539,6 +2632,7 @@ void main() {
               treatmentRepositoryProvider.overrideWithValue(fakeTreatments),
               appointmentRepositoryProvider.overrideWithValue(fakeAppointments),
               impactLogRepositoryProvider.overrideWithValue(fakeImpact),
+              calculatorRepositoryProvider.overrideWithValue(fakeCalculators),
               reminderSchedulerProvider.overrideWithValue(fakeScheduler),
               homeClockProvider.overrideWithValue(() => today),
             ],
@@ -2656,6 +2750,375 @@ void main() {
         await tester.tap(sortBtn);
         await tester.pumpAndSettle();
         expect(find.textContaining('Mais antigos primeiro'), findsOneWidget);
+      },
+    );
+  });
+
+  group('Calculadoras clínicas — Etapa 8', () {
+    test(
+      'CalculadorasRegistry calcula pontuações, interpretações simples e avisos de não diagnóstico (EVA, PHQ-9, GAD-7, CSI, EHP-5, Janela Fértil)',
+      () {
+        // 1. EVA
+        final evaResult = CalculatorsRegistry.eva.compute({'eva_pain': 7});
+        expect(evaResult.score, 7);
+        expect(evaResult.maxScore, 10);
+        expect(evaResult.severityLabel, 'Dor intensa');
+        expect(evaResult.summary, contains('limitação significativa'));
+        expect(evaResult.recommendations, isNotEmpty);
+        expect(evaResult.disclaimer, contains('não constitui diagnóstico'));
+
+        // 2. GAD-7 (7 perguntas x 2 = 14)
+        final gadAnswers = {
+          for (var i = 1; i <= 7; i++) 'gad7_q$i': 2,
+        };
+        final gadResult = CalculatorsRegistry.gad7.compute(gadAnswers);
+        expect(gadResult.score, 14);
+        expect(gadResult.maxScore, 21);
+        expect(gadResult.severityLabel, 'Ansiedade moderada');
+        expect(gadResult.disclaimer, contains('não constitui diagnóstico'));
+
+        // 3. CSI (25 perguntas: 10x3 + 15x1 = 45)
+        final csiAnswers = <String, dynamic>{
+          for (var i = 1; i <= 10; i++) 'csi_q$i': 3,
+          for (var i = 11; i <= 25; i++) 'csi_q$i': 1,
+        };
+        final csiResult = CalculatorsRegistry.csi.compute(csiAnswers);
+        expect(csiResult.score, 45);
+        expect(csiResult.maxScore, 100);
+        expect(csiResult.severityLabel, 'Sensibilização moderada');
+        expect(csiResult.recommendations, isNotEmpty);
+
+        // 4. EHP-5 (5 perguntas: 3, 2, 3, 2, 2 = 12 -> 60%)
+        final ehpAnswers = {
+          'ehp5_q1': 3,
+          'ehp5_q2': 2,
+          'ehp5_q3': 3,
+          'ehp5_q4': 2,
+          'ehp5_q5': 2,
+        };
+        final ehpResult = CalculatorsRegistry.ehp5.compute(ehpAnswers);
+        expect(ehpResult.score, 60.0);
+        expect(ehpResult.maxScore, 100);
+        expect(ehpResult.severityLabel, 'Impacto moderado');
+        expect(ehpResult.summary, contains('60%'));
+
+        // 5. Janela Fértil (ciclo 28, dia 14)
+        final fertileAnswers = {
+          'cycle_duration': 28,
+          'days_since_period': 14,
+        };
+        final fertileResult =
+            CalculatorsRegistry.fertilityWindow.compute(fertileAnswers);
+        expect(fertileResult.score, 14);
+        expect(fertileResult.severityLabel, 'Janela fértil ativa');
+        expect(
+          fertileResult.disclaimer.toLowerCase(),
+          contains('não utilize como método contraceptivo'),
+        );
+
+        // 6. Confirma aviso de não diagnóstico em todas as calculadoras ativas
+        for (final calc in CalculatorsRegistry.all) {
+          expect(calc.title, isNotEmpty);
+          expect(calc.shortName, isNotEmpty);
+          expect(calc.instructions, isNotEmpty);
+          expect(calc.questions, isNotEmpty);
+        }
+      },
+    );
+
+    test(
+      'PHQ-9 ativa alerta imediato de acolhimento (CVV 188) se o item 9 for maior que zero',
+      () {
+        // Cenário sem alerta (q9 = 0)
+        final safeAnswers = {
+          for (var i = 1; i <= 8; i++) 'phq9_q$i': 2,
+          'phq9_q9': 0,
+        };
+        final safeResult = CalculatorsRegistry.phq9.compute(safeAnswers);
+        expect(safeResult.score, 16);
+        expect(safeResult.isCrisisAlert, isFalse);
+        expect(safeResult.crisisHelpText, isNull);
+
+        // Cenário com alerta imediato (q9 > 0)
+        final crisisAnswers = {
+          for (var i = 1; i <= 8; i++) 'phq9_q$i': 1,
+          'phq9_q9': 1,
+        };
+        final crisisResult = CalculatorsRegistry.phq9.compute(crisisAnswers);
+        expect(crisisResult.score, 9);
+        expect(crisisResult.isCrisisAlert, isTrue);
+        expect(crisisResult.crisisHelpText, isNotNull);
+        expect(crisisResult.crisisHelpText, contains('188'));
+        expect(crisisResult.crisisHelpText, contains('CVV'));
+        expect(crisisResult.crisisHelpText, contains('Centro de Valorização da Vida'));
+      },
+    );
+
+    testWidgets(
+      'Calculadoras na aba Cuidar — fluxo de uma pergunta por tela, cálculo de pontuação, exibição de interpretação e persistência em calculatorResults',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final verifiedUser = AppAuthUser(
+          uid: 'user_calculators_test',
+          email: 'calc@endocare.com',
+          emailVerified: true,
+          displayName: 'Camila Rocha',
+        );
+
+        final fakeProfiles = FakeUserProfileRepository()
+          ..seedUser(
+            const UserProfile(
+              uid: 'user_calculators_test',
+              email: 'calc@endocare.com',
+              nome: 'Camila Rocha',
+              preferencias: UserPreferences(
+                onboardingConcluido: true,
+              ),
+            ),
+          );
+
+        final fakeAuth = FakeAuthRepository(
+          fakeProfiles,
+          initialUser: verifiedUser,
+        );
+        final fakeOnboarding = FakeOnboardingStorage(initialCompleted: true);
+        final fakeSymptoms = FakeSymptomLogRepository();
+        final fakeCycles = FakeCycleRepository();
+        final fakeTreatments = FakeTreatmentRepository();
+        final fakeAppointments = FakeAppointmentRepository();
+        final fakeImpact = FakeImpactLogRepository();
+        final fakeCalculators = FakeCalculatorRepository();
+        final fakeScheduler = FakeReminderScheduler();
+        final today = DateTime(2026, 11, 2, 10, 0);
+
+        addTearDown(() {
+          fakeAuth.dispose();
+          fakeProfiles.dispose();
+          fakeSymptoms.dispose();
+          fakeCycles.dispose();
+          fakeTreatments.dispose();
+          fakeAppointments.dispose();
+          fakeImpact.dispose();
+          fakeCalculators.dispose();
+          fakeScheduler.dispose();
+        });
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              onboardingStorageProvider.overrideWithValue(fakeOnboarding),
+              userProfileRepositoryProvider.overrideWithValue(fakeProfiles),
+              authRepositoryProvider.overrideWithValue(fakeAuth),
+              symptomLogRepositoryProvider.overrideWithValue(fakeSymptoms),
+              cycleRepositoryProvider.overrideWithValue(fakeCycles),
+              treatmentRepositoryProvider.overrideWithValue(fakeTreatments),
+              appointmentRepositoryProvider.overrideWithValue(fakeAppointments),
+              impactLogRepositoryProvider.overrideWithValue(fakeImpact),
+              calculatorRepositoryProvider.overrideWithValue(fakeCalculators),
+              reminderSchedulerProvider.overrideWithValue(fakeScheduler),
+              homeClockProvider.overrideWithValue(() => today),
+            ],
+            child: const EndoCareApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // 1. Navega para a aba Cuidar
+        final careTab = find.text('Cuidar');
+        await tester.tap(careTab);
+        await tester.pumpAndSettle();
+
+        // 2. Alterna para a seção Calculadoras
+        final calcSectionTab = find.text('Calculadoras');
+        await tester.tap(calcSectionTab);
+        await tester.pumpAndSettle();
+
+        // 3. Confirma presença dos filtros por categoria e das calculadoras
+        expect(find.textContaining('Todas (7)'), findsOneWidget);
+        expect(find.text('Escala Visual Analógica (EVA)'), findsOneWidget);
+        expect(find.text('PHQ-9 — Rastreio de Humor e Depressão'), findsOneWidget);
+        expect(find.text('GAD-7 — Rastreio de Ansiedade'), findsOneWidget);
+        expect(find.text('CSI — Inventário de Sensibilização Central'), findsOneWidget);
+        expect(find.text('EHP-5 — Perfil de Saúde na Endometriose'), findsOneWidget);
+
+        // 4. Inicia avaliação da EVA
+        final startEvaBtn = find.widgetWithText(EndoCareButton, 'Iniciar avaliação').first;
+        await tester.ensureVisible(startEvaBtn);
+        await tester.pumpAndSettle();
+        await tester.tap(startEvaBtn);
+        await tester.pumpAndSettle();
+
+        // 5. Questionário passo a passo (1 pergunta por tela)
+        expect(find.text('Pergunta 1 de 1'), findsOneWidget);
+        expect(find.textContaining('Qual o nível da sua dor agora'), findsOneWidget);
+
+        // Ajusta o slider para 8
+        final sliderFinder = find.byType(Slider);
+        expect(sliderFinder, findsOneWidget);
+        await tester.tap(sliderFinder);
+        await tester.pumpAndSettle();
+
+        // Conclui avaliação
+        final finishBtn = find.text('Concluir avaliação');
+        await tester.ensureVisible(finishBtn);
+        await tester.pumpAndSettle();
+        await tester.tap(finishBtn);
+        await tester.pumpAndSettle();
+
+        // 6. Confirma tela de resultado com interpretação simples e aviso de não diagnóstico
+        expect(find.text('Resultado da avaliação'), findsOneWidget);
+        expect(find.text('O que este resultado indica?'), findsOneWidget);
+        expect(find.text('Aviso de saúde e não diagnóstico'), findsOneWidget);
+
+        // 7. Confirma persistência em calculatorResults
+        final savedResults =
+            await fakeCalculators.getResultsForCalculator(
+          uid: verifiedUser.uid,
+          calculatorId: 'eva',
+        );
+        expect(savedResults, isNotEmpty);
+        expect(savedResults.first.calculadora, 'eva');
+        expect(savedResults.first.interpretacao, isNotEmpty);
+      },
+    );
+
+    testWidgets(
+      'PHQ-9 no fluxo passo a passo exibe CrisisSupportBanner com CVV 188 quando item 9 é positivo',
+      (tester) async {
+        tester.view.physicalSize = const Size(800, 1600);
+        tester.view.devicePixelRatio = 1.0;
+        addTearDown(() {
+          tester.view.resetPhysicalSize();
+          tester.view.resetDevicePixelRatio();
+        });
+
+        final verifiedUser = AppAuthUser(
+          uid: 'user_phq9_crisis_test',
+          email: 'phq9@endocare.com',
+          emailVerified: true,
+          displayName: 'Juliana Lima',
+        );
+
+        final fakeProfiles = FakeUserProfileRepository()
+          ..seedUser(
+            const UserProfile(
+              uid: 'user_phq9_crisis_test',
+              email: 'phq9@endocare.com',
+              nome: 'Juliana Lima',
+              preferencias: UserPreferences(onboardingConcluido: true),
+            ),
+          );
+
+        final fakeAuth = FakeAuthRepository(
+          fakeProfiles,
+          initialUser: verifiedUser,
+        );
+        final fakeOnboarding = FakeOnboardingStorage(initialCompleted: true);
+        final fakeSymptoms = FakeSymptomLogRepository();
+        final fakeCycles = FakeCycleRepository();
+        final fakeTreatments = FakeTreatmentRepository();
+        final fakeAppointments = FakeAppointmentRepository();
+        final fakeImpact = FakeImpactLogRepository();
+        final fakeCalculators = FakeCalculatorRepository();
+        final fakeScheduler = FakeReminderScheduler();
+        final today = DateTime(2026, 11, 2, 10, 0);
+
+        addTearDown(() {
+          fakeAuth.dispose();
+          fakeProfiles.dispose();
+          fakeSymptoms.dispose();
+          fakeCycles.dispose();
+          fakeTreatments.dispose();
+          fakeAppointments.dispose();
+          fakeImpact.dispose();
+          fakeCalculators.dispose();
+          fakeScheduler.dispose();
+        });
+
+        await tester.pumpWidget(
+          ProviderScope(
+            overrides: [
+              onboardingStorageProvider.overrideWithValue(fakeOnboarding),
+              userProfileRepositoryProvider.overrideWithValue(fakeProfiles),
+              authRepositoryProvider.overrideWithValue(fakeAuth),
+              symptomLogRepositoryProvider.overrideWithValue(fakeSymptoms),
+              cycleRepositoryProvider.overrideWithValue(fakeCycles),
+              treatmentRepositoryProvider.overrideWithValue(fakeTreatments),
+              appointmentRepositoryProvider.overrideWithValue(fakeAppointments),
+              impactLogRepositoryProvider.overrideWithValue(fakeImpact),
+              calculatorRepositoryProvider.overrideWithValue(fakeCalculators),
+              reminderSchedulerProvider.overrideWithValue(fakeScheduler),
+              homeClockProvider.overrideWithValue(() => today),
+            ],
+            child: const EndoCareApp(),
+          ),
+        );
+        await tester.pumpAndSettle();
+
+        // 1. Abre tela Cuidar -> Calculadoras
+        await tester.tap(find.text('Cuidar'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Calculadoras'));
+        await tester.pumpAndSettle();
+
+        // 2. Inicia PHQ-9
+        final phqCard = find.widgetWithText(EndoCareCard, 'PHQ-9 — Rastreio de Humor e Depressão');
+        await tester.ensureVisible(phqCard);
+        await tester.pumpAndSettle();
+        final startPhqBtn = find.descendant(
+          of: phqCard,
+          matching: find.text('Iniciar avaliação'),
+        );
+        await tester.tap(startPhqBtn);
+        await tester.pumpAndSettle();
+
+        // 3. Responde perguntas 1 a 8 selecionando "Nenhuma vez" e avançando
+        for (var step = 1; step <= 8; step++) {
+          expect(find.text('Pergunta $step de 9'), findsOneWidget);
+          final optNenhuma = find.text('Nenhuma vez');
+          await tester.tap(optNenhuma);
+          await tester.pumpAndSettle();
+
+          final advanceBtn = find.text('Avançar');
+          await tester.tap(advanceBtn);
+          await tester.pumpAndSettle();
+        }
+
+        // 4. Pergunta 9 (Pensamentos autolesivos) - seleciona "Vários dias"
+        expect(find.text('Pergunta 9 de 9'), findsOneWidget);
+        expect(
+          find.textContaining('Pensamentos de que seria melhor estar morta'),
+          findsOneWidget,
+        );
+
+        final optVariosDias = find.text('Vários dias');
+        await tester.tap(optVariosDias);
+        await tester.pumpAndSettle();
+
+        // Conclui avaliação
+        final finishBtn = find.text('Concluir avaliação');
+        await tester.tap(finishBtn);
+        await tester.pumpAndSettle();
+
+        // 5. Verifica que o CrisisSupportBanner com CVV 188 foi acionado
+        expect(find.text('Você não está sozinha. Estamos com você.'), findsOneWidget);
+        expect(find.text('Ligue 188'), findsOneWidget);
+        expect(find.text('Centro de Valorização da Vida (CVV)'), findsOneWidget);
+        expect(find.text('Aviso de saúde e não diagnóstico'), findsOneWidget);
+
+        // 6. Confirma que o resultado salvo possui isCrisisAlert == true
+        final saved = await fakeCalculators.getLatestResult(
+          uid: verifiedUser.uid,
+          calculatorId: 'phq9',
+        );
+        expect(saved, isNotNull);
+        expect(saved!.isCrisisAlert, isTrue);
       },
     );
   });

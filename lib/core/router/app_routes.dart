@@ -19,6 +19,8 @@ abstract final class AppRoutes {
   static const String bodyMap = '/mapa-corporal';
   static const String impact = '/diario-impacto';
   static const String timeline = '/linha-do-tempo';
+  static const String calculators = '/calculadoras';
+  static const String calculatorQuestionnaire = '/calculadoras/:id';
 
   // Nomes de rotas
   static const String splashName = 'splash';
@@ -35,6 +37,8 @@ abstract final class AppRoutes {
   static const String bodyMapName = 'body-map';
   static const String impactName = 'impact';
   static const String timelineName = 'timeline';
+  static const String calculatorsName = 'calculators';
+  static const String calculatorQuestionnaireName = 'calculator-questionnaire';
 
   static const Set<String> publicAuthPaths = {
     login,

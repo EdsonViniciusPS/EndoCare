@@ -12,6 +12,8 @@ import 'package:endocare/features/auth/presentation/screens/register_screen.dart
 import 'package:endocare/features/auth/presentation/screens/splash_screen.dart';
 import 'package:endocare/features/auth/presentation/screens/verify_email_screen.dart';
 import 'package:endocare/features/body_map/presentation/screens/body_map_screen.dart';
+import 'package:endocare/features/calculators/presentation/screens/calculator_questionnaire_screen.dart';
+import 'package:endocare/features/calculators/presentation/screens/calculators_screen.dart';
 import 'package:endocare/features/calendar/presentation/screens/calendar_screen.dart';
 import 'package:endocare/features/care/presentation/screens/care_screen.dart';
 import 'package:endocare/features/home/presentation/screens/home_screen.dart';
@@ -176,6 +178,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.timeline,
         name: AppRoutes.timelineName,
         builder: (context, state) => const TimelineScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.calculators,
+        name: AppRoutes.calculatorsName,
+        builder: (context, state) => const CalculatorsScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.calculatorQuestionnaire,
+        name: AppRoutes.calculatorQuestionnaireName,
+        builder: (context, state) {
+          final id = state.pathParameters['id'] ?? 'eva';
+          return CalculatorQuestionnaireScreen(calculatorId: id);
+        },
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
