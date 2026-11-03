@@ -7,6 +7,7 @@ import 'package:endocare/core/theme/app_colors.dart';
 import 'package:endocare/core/theme/app_spacing.dart';
 import 'package:endocare/core/widgets/endocare_widgets.dart';
 import 'package:endocare/features/auth/presentation/providers/auth_providers.dart';
+import 'package:endocare/features/auth/presentation/widgets/sign_out_dialog.dart';
 
 /// Aba 5 — Mais (exibe o resumo de `users/{uid}`, logout e módulos adicionais).
 class MoreScreen extends ConsumerWidget {
@@ -104,7 +105,7 @@ class MoreScreen extends ConsumerWidget {
                       variant: EndoCareButtonVariant.outlined,
                       isExpanded: true,
                       onPressed: () {
-                        ref.read(authRepositoryProvider).signOut();
+                        confirmAndSignOut(context, ref);
                       },
                     ),
                   ],

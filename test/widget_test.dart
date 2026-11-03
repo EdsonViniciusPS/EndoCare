@@ -1859,6 +1859,13 @@ void main() {
       await tester.ensureVisible(signOutBtn);
       await tester.tap(signOutBtn);
       await tester.pumpAndSettle();
+
+      // Diálogo de confirmação de logout
+      expect(find.text('Deseja sair da conta?'), findsOneWidget);
+      final confirmSignOutBtn = find.widgetWithText(FilledButton, 'Sair');
+      await tester.tap(confirmSignOutBtn);
+      await tester.pumpAndSettle();
+
       expect(find.text('Que bom ter você aqui'), findsOneWidget);
 
       final loginFields = find.byType(TextFormField);
@@ -1869,6 +1876,41 @@ void main() {
       await tester.tap(loginSubmitBtn);
       await tester.pumpAndSettle();
       expect(find.text('Bom dia, Mariana'), findsOneWidget);
+
+      // Valida logo ampliado no topo esquerdo da AppBar
+      final appBarLogo = tester.widget<EndoCareLogo>(
+        find.descendant(
+          of: find.byType(AppBar),
+          matching: find.byType(EndoCareLogo),
+        ),
+      );
+      expect(appBarLogo.height, greaterThanOrEqualTo(40));
+      expect(appBarLogo.variant, EndoCareLogoVariant.horizontal);
+
+      // Valida botão de sair no topo direito da AppBar com diálogo de confirmação
+      final appBarLogoutBtn = find.descendant(
+        of: find.byType(AppBar),
+        matching: find.byTooltip('Sair da conta'),
+      );
+      expect(appBarLogoutBtn, findsOneWidget);
+      await tester.tap(appBarLogoutBtn);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Deseja sair da conta?'), findsOneWidget);
+
+      // 1. Cancelar mantém logada
+      final cancelBtn = find.text('Cancelar');
+      await tester.tap(cancelBtn);
+      await tester.pumpAndSettle();
+      expect(find.text('Bom dia, Mariana'), findsOneWidget);
+
+      // 2. Confirmar efetiva o logout
+      await tester.tap(appBarLogoutBtn);
+      await tester.pumpAndSettle();
+      final confirmBtn = find.widgetWithText(FilledButton, 'Sair');
+      await tester.tap(confirmBtn);
+      await tester.pumpAndSettle();
+      expect(find.text('Que bom ter você aqui'), findsOneWidget);
     },
   );
 

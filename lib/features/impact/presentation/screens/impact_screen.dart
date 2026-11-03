@@ -40,8 +40,9 @@ class _ImpactScreenState extends ConsumerState<ImpactScreen> {
   @override
   void initState() {
     super.initState();
+    final now = ref.read(homeClockProvider)();
     _selectedDate = SymptomLog.normalizeDate(
-      widget.initialDate ?? DateTime.now(),
+      widget.initialDate ?? now,
     );
   }
 

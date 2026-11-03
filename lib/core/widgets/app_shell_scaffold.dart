@@ -5,6 +5,7 @@ import 'package:endocare/core/theme/app_colors.dart';
 import 'package:endocare/core/theme/app_spacing.dart';
 import 'package:endocare/core/widgets/endocare_logo.dart';
 import 'package:endocare/features/auth/presentation/providers/auth_providers.dart';
+import 'package:endocare/features/auth/presentation/widgets/sign_out_dialog.dart';
 
 /// Estrutura principal com cabeçalho compacto e navegação inferior de 5 abas
 /// (Início, Calendário, botão central Registrar, Cuidar e Mais).
@@ -30,6 +31,9 @@ class AppShellScaffold extends ConsumerWidget {
     return Scaffold(
       appBar: AppBar(
         backgroundColor: AppColors.surface,
+        centerTitle: false,
+        titleSpacing: AppSpacing.sm,
+        toolbarHeight: 62,
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(1),
           child: Container(
@@ -38,8 +42,8 @@ class AppShellScaffold extends ConsumerWidget {
           ),
         ),
         title: const EndoCareLogo(
-          variant: EndoCareLogoVariant.wordmark,
-          height: 28,
+          variant: EndoCareLogoVariant.horizontal,
+          height: 44,
           padding: EdgeInsets.symmetric(
             horizontal: AppSpacing.xs,
             vertical: 2,
@@ -50,10 +54,10 @@ class AppShellScaffold extends ConsumerWidget {
             tooltip: 'Sair da conta',
             icon: const Icon(
               Icons.logout_rounded,
-              size: 20,
+              size: 22,
               color: AppColors.textSecondary,
             ),
-            onPressed: () => ref.read(authRepositoryProvider).signOut(),
+            onPressed: () => confirmAndSignOut(context, ref),
           ),
           const SizedBox(width: AppSpacing.xs),
         ],
